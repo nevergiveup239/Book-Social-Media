@@ -1,0 +1,27 @@
+server:
+  port: 8093
+  servlet:
+    context-path: /history
+
+spring:
+  application:
+    name: reading-history-service
+
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/history_db
+
+  kafka:
+    consumer:
+      bootstrap-servers: kafka:9092
+      group-id: reading-history-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://eureka:8761/eureka/

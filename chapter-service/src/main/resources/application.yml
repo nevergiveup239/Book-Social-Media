@@ -1,0 +1,40 @@
+server:
+  port: 8087
+  servlet:
+    context-path: /chapter
+
+spring:
+  application:
+    name: chapter-service
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    topic.chapter-count: chapter-count-topic
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: chapter-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      missing-topics-fatal: false
+
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/chapterdb
+    redis:
+      host: redis
+      port: 6379
+
+logging:
+  level:
+    org.apache.kafka.clients: DEBUG
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:8761/eureka/
+  instance:
+    prefer-ip-address: true

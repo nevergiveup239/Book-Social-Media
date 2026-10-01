@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  chapter-service:
+    build:
+      context: .
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/chapter_db
+    ports:
+      - "8087:8087"
+
+  mongo:
+    image: mongo:6.0
+    container_name: chapter-service-mongo-db
+    ports:
+      - "27018:27017"
+    networks:
+      - app-network
+    volumes:
+      - mongo_data:/data/db
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo_data:

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>Parent</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>favourite-service</module>
+        <module>reading-history-service</module>
+        <module>user-profile-service</module>
+        <module>crawl-service</module>
+        <module>book-service</module>
+        <module>api-gateway</module>
+        <module>discovery-service</module>
+        <module>chapter-service</module>
+        <module>comment-service</module>
+        <module>bookmark-service</module>
+        <module>wishlist-service</module>
+        <module>upload-service</module>
+        <module>analytics-service</module>
+        <module>auth-service</module>
+        <module>search-service</module>
+    </modules>
+
+
+    <properties>
+        <maven.compiler.source>23</maven.compiler.source>
+        <maven.compiler.target>23</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+</project>

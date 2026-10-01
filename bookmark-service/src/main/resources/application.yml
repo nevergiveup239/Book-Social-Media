@@ -1,0 +1,28 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /bookmark
+
+spring:
+  application:
+    name: bookmark-service
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/bookmark_db
+
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+
+logging:
+  level:
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://eureka:8761/eureka/
+  instance:
+    prefer-ip-address: true

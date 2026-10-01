@@ -1,0 +1,27 @@
+server:
+  port: 8091
+  servlet:
+    context-path: /favourite
+
+spring:
+  application:
+    name: favourite-service
+
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/bookdb
+
+  kafka:
+    consumer:
+      bootstrap-servers: kafka:9092
+      group-id: favourite-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://eureka:8761/eureka/

@@ -1,0 +1,297 @@
+services:
+  redis:
+    image: redis:7.2
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - frere_redis_data:/data
+    restart: unless-stopped
+    command: [ "redis-server", "--appendonly", "yes" ]
+    networks:
+      - api-network
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - api-network
+
+  neo4j:
+    image: neo4j:5.17  # hoặc dùng latest: neo4j:latest
+    container_name: neo4j
+    hostname: neo4j
+    ports:
+      - "7474:7474"   # HTTP - Neo4j Browser
+      - "7687:7687"   # Bolt - cho Spring Boot kết nối
+    environment:
+      NEO4J_AUTH: neo4j/123456789  # username/password
+      NEO4J_PLUGINS: '["apoc"]'    # bật APOC nếu cần
+      NEO4J_dbms_security_procedures_unrestricted: 'apoc.*,algo.*'
+      NEO4J_dbms_default__listen__address: 0.0.0.0
+    volumes:
+      - frere_neo4j_data:/data
+    restart: always
+    networks:
+      - api-network
+
+  kafka:
+    image: 'bitnami/kafka:latest'
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - '9092:9092'
+      - '9094:9094'
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    networks:
+      - api-network
+    restart: always
+
+  elasticsearch:
+    image: bitnami/elasticsearch:latest
+    container_name: elasticsearch
+    environment:
+      - ELASTICSEARCH_ENABLE_SECURITY=false       # Tắt security cho dev/test
+    ports:
+      - "9200:9200"                                # REST API
+      - "9300:9300"                                # Transport layer
+    volumes:
+      - frere_elasticsearch_data:/bitnami/elasticsearch
+    networks:
+      - api-network
+    restart: always
+
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: gateway
+    ports:
+      - "8888:8888"
+    networks:
+      - api-network
+    depends_on:
+      - eureka-server
+
+  eureka-server:
+    build:
+      context: ./discovery-service
+    container_name: eureka
+    ports:
+      - "8761:8761"
+    networks:
+      - api-network
+    restart: always
+
+  mysql-db:
+    image: mysql:8.0
+    container_name: frere-mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: frere_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - frere_mysql_data:/var/lib/mysql
+    networks:
+      - api-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: frere-mongo-db
+    ports:
+      - "27018:27017"
+    networks:
+      - api-network
+    volumes:
+      - frere_mongo_data:/data/db
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SIGNER_KEY: "A5QeC6oNNk4gXSbRoTFyHoZAG6d9dgOJS+6/jscIW0m2m6do7/o1Q1zainVvVpOq"
+      JWT_VALID_DURATION: "3600"
+      JWT_REFRESHABLE_DURATION: "360000"
+      EUREKA_SERVER_URL: "http://eureka:8761/eureka/"
+      DBMS_CONNECTION: "jdbc:mysql://frere-mysql-db:3306/frere_db"
+      DBMS_USERNAME: "root"
+      DBMS_PASSWORD: "1234"
+      SPRING_PROFILES_ACTIVE: "local"
+    depends_on:
+      - mysql-db
+    networks:
+      - api-network
+
+  book-service:
+    build:
+      context: ./book-service
+    container_name: book
+    depends_on:
+      - mongodb
+      - eureka-server
+      - api-gateway
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/frere_db
+    ports:
+      - "8086:8086"
+    networks:
+      - api-network
+
+
+  chapter-service:
+    build:
+      context: ./chapter-service
+    depends_on:
+      - mongodb
+      - eureka-server
+      - api-gateway
+    networks:
+      - api-network
+    environment:
+
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/frere_db
+    ports:
+      - "8087:8087"
+
+  comment-service:
+    build:
+      context: ./comment-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_DATA_MONGODB_HOST=mongodb
+      - SPRING_DATA_MONGODB_PORT=27017
+      - SPRING_DATA_MONGODB_DATABASE=comment_db
+    depends_on:
+      - mongodb
+      - eureka-server
+      - api-gateway
+    networks:
+      - api-network
+
+  crawl-service:
+    build:
+      context: ./crawl-service
+    networks:
+      - api-network
+    ports:
+      - "8082:8082"
+
+  upload-service:
+    build:
+      context: ./upload-service
+    networks:
+      - api-network
+    ports:
+      - "8085:8085"
+    depends_on:
+      - api-gateway
+      - eureka-server
+
+
+  search-service:
+    build:
+      context: ./search-service
+    depends_on:
+      - eureka-server
+      - elasticsearch
+    networks:
+      - api-network
+    ports:
+      - "8090:8090"
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    container_name: kafdrop
+    ports:
+      - "9000:9000"
+    command: [ "--kafka.brokerConnect=kafka:9092" ]
+    depends_on:
+      - kafka
+    networks:
+      - api-network
+    restart: unless-stopped
+
+  user-profile-service:
+    build:
+      context: ./user-profile-service
+    container_name: user-profile
+    ports:
+      - "8099:8099"   # đồng bộ với server.port = 8099 trong yml
+    environment:
+      SPRING_APPLICATION_NAME: user-profile-service
+      SPRING_NEO4J_URI: bolt://neo4j:7687
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: 123456789
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "true"
+      EUREKA_CLIENT_FETCH_REGISTRY: "true"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      EUREKA_INSTANCE_HOSTNAME: user-profile-service
+    depends_on:
+      - neo4j
+      - eureka-server
+    networks:
+      - api-network
+
+
+  reading-history-service:
+    build:
+      context: ./reading-history-service
+    container_name: reading-history
+    depends_on:
+      - mongodb
+      - eureka-server
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/frere_db
+      EUREKA_SERVER_URL: http://eureka:8761/eureka/
+    networks:
+      - api-network
+
+  favourite-service:
+    build:
+      context: ./favourite-service
+    container_name: favourite
+    depends_on:
+      - mongodb
+      - eureka-server
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/frere_db
+      EUREKA_SERVER_URL: http://eureka:8761/eureka/
+    networks:
+      - api-network
+
+volumes:
+  frere_redis_data:
+    driver: local
+  frere_mysql_data:
+    driver: local
+  frere_mongo_data:
+    driver: local
+  frere_elasticsearch_data:
+    driver: local
+  frere_neo4j_data:
+    driver: local
+networks:
+  api-network:
+    driver: bridge
+
